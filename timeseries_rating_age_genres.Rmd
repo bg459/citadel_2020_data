@@ -1,0 +1,71 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+library(dplyr)
+library(ggplot2)
+library(urca)
+library(TTR)
+library(pastecs)
+
+```{r}
+ratings<-read.csv("ratings.csv")
+movie_genres<-read.csv("movie_genres.csv")
+ratings_genres<-ratings %>% select(movieId,rating,timestamp) %>% left_join( movie_genres %>% select(movieId,genres), by= c("movieId"="movieId"))
+```
+
+Calculate the age of movie when being rated (for a given movie, age:=timestamp-min(timestamp))
+
+```{r}
+movie_firsttime<-summarise(group_by(ratings_genres,movieId),firsttime=min(timestamp))
+ratings_genres_age<-ratings_genres %>% left_join(movie_firsttime, by= c("movieId"="movieId"))
+ratings_genres_age<-ratings_genres_age %>% mutate(age=timestamp-firsttime) %>% select(rating,genres,age)
+```
+
+```{r}
+ratings_genres_cut<-ratings_genres_age
+ratings_genres_cut$age<-cut(ratings_genres_cut$age,100)
+ratings_genres_cut_group<-group_by(ratings_genres_cut,genres,age)
+ratings_genres_age<-summarise(ratings_genres_cut_group,mean_rating=mean(rating))
+```
+
+Take Action movie for example
+
+```{r}
+rating_age_action<-subset(ratings_genres_age,genres=="Action")
+rating_age_action<-ts(rating_age_action$mean_rating)
+plot(rating_age_action)
+```
+
+Stationarity test (kpss)
+
+```{r}
+summary(ur.kpss(rating_age_action))
+```
+
+After testing stationarity, we can choose a 
+
+Extract trend
+
+```{r}
+rating_age_action_trend<-SMA(rating_age_action)
+plot.ts(rating_age_action_trend)
+```
+
+Test trend (There are no common methods for this test, I will figure out an interpretable if necessary)
+
+```{r}
+trend.test(rating_age_action, R=1)
+```
+
+Forecast
+
+
+
+
+
+
+
+
+
