@@ -1,0 +1,123 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+library(dplyr)
+library(ggplot2)
+library(urca)
+library(TTR)
+library(pastecs)
+library(TSclust)
+library(tidyr)
+library(ggcorrplot)
+
+Load data and add genres
+
+```{r}
+ratings<-read.csv("ratings.csv")
+movie_genres<-read.csv("movie_genres.csv")
+ratings_genres<-ratings %>% select(movieId,rating,timestamp) %>% left_join( movie_genres %>% select(movieId,genres), by= c("movieId"="movieId"))
+```
+
+Kruskal-Wallis H Test
+
+```{r}
+kruskal.test(rating~genres,data=ratings_genres)
+```
+
+Conclusion: p-value < 0.05, grouping by genres makes sense.
+
+Calculate the age of movie when being rated (for a given movie, age:=timestamp-min(timestamp))
+
+```{r}
+movie_firsttime<-summarise(group_by(ratings_genres,movieId),firsttime=min(timestamp))
+ratings_genres_age<-ratings_genres %>% left_join(movie_firsttime, by= c("movieId"="movieId"))
+ratings_genres_age<-ratings_genres_age %>% mutate(age=timestamp-firsttime) %>% select(rating,genres,age)
+```
+
+Normalize the ratings based on genres (for all age together)
+
+```{r}
+ratings_genres_age_normalize_group<-group_by(ratings_genres_age,genres)
+ratings_genres_age_normalize<-summarise(ratings_genres_age_normalize_group,rating_normalize=scale(rating),age=age)
+```
+
+Calculate the mean rating for each age based on genres (without normalization)
+
+```{r}
+ratings_genres_age_cut<-ratings_genres_age
+ratings_genres_age_cut$age<-cut(ratings_genres_age_cut$age,100)
+ratings_genres_age_cut_group<-group_by(ratings_genres_age_cut,genres,age)
+ratings_genres_age_ts<-summarise(ratings_genres_age_cut_group,mean_rating=mean(rating))
+```
+
+Calculate the mean rating for each age based on genres (with normalization)
+
+```{r}
+ratings_genres_age_normalize_cut<-ratings_genres_age_normalize
+ratings_genres_age_normalize_cut$age<-cut(ratings_genres_age_normalize_cut$age,100)
+ratings_genres_age_normalize_cut_group<-group_by(ratings_genres_age_normalize_cut,genres,age)
+ratings_genres_age_normalize_ts<-summarise(ratings_genres_age_normalize_cut_group,mean_rating_normalize=mean(rating_normalize))
+```
+
+
+Take Action movie for example
+
+Plot (without normalization)
+
+```{r}
+rating_age_ts_action<-subset(ratings_genres_age_ts,genres=="Action")
+rating_age_ts_action<-ts(rating_age_ts_action$mean_rating)
+plot(rating_age_ts_action)
+```
+
+Plot (with normalization)
+
+```{r}
+rating_age_normalize_ts_action<-subset(ratings_genres_age_normalize_ts,genres=="Action")
+rating_age_normalize_ts_action<-ts(rating_age_normalize_ts_action$mean_rating_normalize)
+plot(rating_age_normalize_ts_action)
+```
+
+Stationarity test (kpss)
+
+```{r}
+summary(ur.kpss(rating_age_ts_action))
+```
+
+After testing stationarity, we can choose a suitable model.
+
+Extract trend
+
+```{r}
+rating_age_ts_trend_action<-SMA(rating_age_ts_action)
+plot.ts(rating_age_ts_trend_action)
+```
+
+Test trend (There are no common methods for this test, I will figure out an interpretable if necessary)
+
+```{r}
+trend.test(rating_age_ts_action, R=1)
+```
+
+Clustering (visualization for correlation D_rating_genres) (to be added)
+```{r}
+rating_age_ts<-spread(ratings_genres_age_ts,genres,mean_rating)
+rating_age_ts<-rating_age_ts[,which(apply(is.na(rating_age_ts), 2, sum) == 0)]
+rating_age_ts<-rating_age_ts[,-1]
+Dist_rating_genres<-diss(rating_age_ts,"DTWARP")
+Clust_genres<-hclust(Dist_rating_genres)
+plot(Clust_genres)
+```
+
+Forecast
+
+
+
+
+
+
+
+
+
