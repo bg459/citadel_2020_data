@@ -10,7 +10,7 @@ Our Submission for 2020 West Coast Data Open.
 
 *images/*: Folder containing all images used in the report. Must be downloaded in order to compile the .tex from source.
 
-*qc_pipeline.ipynb*: Python Notebook file for processing data / quality control
+*qc_pipeline.py*: Python file for processing data / quality control
 
 *main_pipeline.Rmd*: Main R code for pipeline shown in the figure (Dendrogram, hypothesis testing, etc.)
 
